@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { title } from 'process';
+import { CreateCourseDto } from './dto/create-course.dto.js';
 
 type Course = {
     id: number;
@@ -19,6 +19,8 @@ type UpdateCourseInput = {
 
 @Injectable()
 export class CoursesService {
+  private nextId = 4;
+
     private readonly courses: Course[] = [
     { id: 1, title: 'NestJS Fundamentals', level: 'beginner' },
     { id: 2, title: 'REST APIs with NestJS', level: 'beginner' },
@@ -38,13 +40,9 @@ findOne(id: number): Course | undefined {
     }
 
 
-create(input: CreateCourseInput): Course {
-    const course: Course = {
-      id: Math.max(0, ...this.courses.map((item) => item.id)) + 1,
-      title: input.title,
-      level: input.level,
-    };
-
+create(createCourseDto: CreateCourseDto): Course {
+  const course = { id: this.nextId++, ...createCourseDto };
+  this.courses.push(course);
     this.courses.push(course);
     return course;
   }
