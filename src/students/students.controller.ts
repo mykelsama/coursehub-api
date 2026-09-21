@@ -7,16 +7,28 @@ import {
   Patch,
   Post,
   Query,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { StudentsService } from './students.service.js';
 import { CreateStudentDto } from './dto/create-students.dto.js';
 import { UpdateStudentDto } from './dto/update-students.dto.js';
 import { UpdateStatusDto } from './dto/update-status.dto.js';
-import { ParseIntPipe } from '@nestjs/common';
+import { ParseIntPipe } from './pipes/parse-int.pipe.js';
+import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 
 @Controller('students')
 export class StudentsController {
-  constructor(private readonly studentsService: StudentsService) {}
+  constructor(
+    private readonly studentsService: StudentsService,
+    @Inject(forwardRef(() => EnrollmentsService))
+    private readonly enrollmentsService: EnrollmentsService,
+  ) {}
+
+  @Get(':id/enrollments')
+  findEnrollments(@Param('id', ParseIntPipe) id: number) {
+    return this.enrollmentsService.findByStudent(id);
+  }
 
   @Get()
   findAll(
