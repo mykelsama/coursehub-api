@@ -267,5 +267,26 @@ Las dependencias circulares entre `EnrollmentsModule` y los módulos `CoursesMod
 
 
 
-pruebas
+Pruebas
+
+estudiantes agregados 
+![alt text](image-6.png)
 ![alt text](image.png)
+matricula duplicada 
+![alt text](image-1.png)
+curso inexistente 
+![alt text](image-2.png)
+estudiante inexistente 
+![alt text](image-3.png)
+
+Desactivar etsudiante 2 
+![alt text](image-4.png)
+
+intentar matricular estudiante inactiva 
+![alt text](image-5.png)
+
+Filtrar matricula de los estudiantes 
+![alt text](image-7.png)
+
+Filtrar atricula por cursos 
+![alt text](image-8.png)
