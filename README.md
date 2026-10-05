@@ -290,3 +290,194 @@ Filtrar matricula de los estudiantes
 
 Filtrar atricula por cursos 
 ![alt text](image-8.png)
+
+
+
+
+
+CourseHub API — Evidencia de Demostración
+Proyecto Semana 5: Persistencia de estudiantes y matrículas con PostgreSQL
+
+====================================================================
+PASO 1 — Crear un curso y un estudiante activo
+====================================================================
+
+POST /courses
+Request:
+{
+  "title": "Programación Web Avanzada",
+  "level": "advanced"
+}
+Response 201 Created:
+{
+  "id": 4,
+  "title": "Programación Web Avanzada",
+  "level": "advanced"
+}
+
+POST /students
+Request:
+{
+  "name": "María Fernanda Zambrano",
+  "email": "maria.zambrano@uleam.edu.ec",
+  "age": 23,
+  "career": "Software",
+  "semester": 6
+}
+Response 201 Created:
+{
+  "id": 1,
+  "name": "María Fernanda Zambrano",
+  "email": "maria.zambrano@uleam.edu.ec",
+  "age": 23,
+  "career": "Software",
+  "semester": 6,
+  "isActive": true
+}
+
+====================================================================
+PASO 2 — Crear una matrícula válida
+====================================================================
+
+POST /enrollments
+Request:
+{
+  "studentId": 1,
+  "courseId": 2
+}
+Response 201 Created:
+{
+  "id": 1,
+  "student": {
+    "id": 1,
+    "name": "María Fernanda Zambrano",
+    "email": "maria.zambrano@uleam.edu.ec",
+    "age": 23,
+    "career": "Software",
+    "semester": 6,
+    "isActive": true
+  },
+  "course": {
+    "id": 2,
+    "title": "Curso persistente de prueba",
+    "level": "beginner"
+  }
+}
+
+====================================================================
+PASO 3 — Reiniciar la API y consultar la misma matrícula
+====================================================================
+
+[Servidor detenido con Ctrl+C y reiniciado con pnpm run start:dev]
+
+GET /enrollments?studentId=1
+Response 200 OK:
+[
+  {
+    "id": 1,
+    "student": { "id": 1, "name": "María Fernanda Zambrano", ... },
+    "course": { "id": 2, "title": "Curso persistente de prueba", ... }
+  }
+]
+
+La matrícula permanece disponible tras el reinicio, confirmando que ya no
+depende de un arreglo en memoria sino de PostgreSQL.
+
+====================================================================
+PASO 4 — Matrícula duplicada (409)
+====================================================================
+
+POST /enrollments
+Request:
+{
+  "studentId": 1,
+  "courseId": 2
+}
+Response 409 Conflict:
+{
+  "message": "El estudiante ya está matriculado en este curso",
+  "error": "Conflict",
+  "statusCode": 409
+}
+
+====================================================================
+PASO 5 — Estudiante inactivo
+====================================================================
+
+PATCH /students/1/status
+Request:
+{"isActive": false}
+Response 200 OK:
+{
+  "id": 1,
+  "name": "María Fernanda Zambrano",
+  "isActive": false
+}
+
+POST /enrollments
+Request:
+{
+  "studentId": 1,
+  "courseId": 4
+}
+Response 409 Conflict:
+{
+  "message": "El estudiante no se encuentra activo",
+  "error": "Conflict",
+  "statusCode": 409
+}
+
+[Estudiante reactivado nuevamente con PATCH /students/1/status {"isActive": true}]
+
+====================================================================
+PASO 6 — Filtrar matrículas por estudiante o curso
+====================================================================
+
+GET /enrollments?studentId=1
+Response 200 OK:
+[
+  {
+    "id": 1,
+    "student": { "id": 1, "name": "María Fernanda Zambrano", ... },
+    "course": { "id": 2, "title": "Curso persistente de prueba", ... }
+  }
+]
+
+GET /enrollments?courseId=2
+Response 200 OK:
+[
+  {
+    "id": 1,
+    "student": { "id": 1, "name": "María Fernanda Zambrano", ... },
+    "course": { "id": 2, "title": "Curso persistente de prueba", ... }
+  }
+]
+
+====================================================================
+PASO 7 — Cancelar la matrícula y comprobar que ya no se encuentra
+====================================================================
+
+DELETE /enrollments/1
+Response 200 OK:
+{
+  "id": 1,
+  "student": { ... },
+  "course": { ... }
+}
+
+GET /enrollments?studentId=1
+Response 200 OK:
+[]
+
+La matrícula fue cancelada correctamente y ya no aparece en las consultas.
+
+====================================================================
+Verificación adicional en base de datos (DBeaver)
+====================================================================
+
+- Tablas confirmadas en PostgreSQL: courses, students, enrollments
+- Foreign keys confirmadas en la tabla enrollments:
+  - FK hacia courses(id)
+  - FK hacia students(id)
+- Restricción de email único confirmada en la tabla students (@Column unique: true)
+- Restricción única compuesta (student + course) confirmada en enrollments

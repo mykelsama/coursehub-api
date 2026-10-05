@@ -3,11 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Course } from './entities/course.entity.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
-
-type UpdateCourseInput = {
-  title?: string;
-  level?: string;
-};
+import { UpdateCourseDto } from './dto/update-course.dto.js';
 
 @Injectable()
 export class CoursesService {
@@ -36,9 +32,9 @@ export class CoursesService {
     return this.coursesRepository.save(course);
   }
 
-  async update(id: number, input: UpdateCourseInput): Promise<Course> {
+  async update(id: number, updateCourseDto: UpdateCourseDto): Promise<Course> {
     const course = await this.findOne(id);
-    Object.assign(course, input);
+    Object.assign(course, updateCourseDto);
     return this.coursesRepository.save(course);
   }
 
