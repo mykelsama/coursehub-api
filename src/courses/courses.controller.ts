@@ -12,9 +12,9 @@ import {
 } from '@nestjs/common';
 import { CoursesService } from './courses.service.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
-import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
-
+import { CoursesQueryDto } from './dto/courses-query.dto.js';
+import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 
 @Controller('courses')
 export class CoursesController {
@@ -30,8 +30,8 @@ export class CoursesController {
   }
 
   @Get()
-  findAll(@Query('level') level?: string) {
-    return this.coursesService.findAll(level);
+  findAll(@Query() query: CoursesQueryDto) {
+    return this.coursesService.findAll(query);
   }
 
   @Get(':id')
@@ -45,10 +45,7 @@ export class CoursesController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateCourseDto: UpdateCourseDto,
-  ) {
+  update(@Param('id') id: string, @Body() updateCourseDto: UpdateCourseDto) {
     return this.coursesService.update(Number(id), updateCourseDto);
   }
 

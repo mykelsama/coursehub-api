@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Enrollment } from '../../enrollments/entities/enrollment.entity.js';
 
 @Entity('courses')
 export class Course {
@@ -10,4 +11,7 @@ export class Course {
 
   @Column()
   level: string;
+
+  @OneToMany(() => Enrollment, (enrollment) => enrollment.course)
+  enrollments: Enrollment[];
 }

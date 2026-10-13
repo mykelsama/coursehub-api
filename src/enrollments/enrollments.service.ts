@@ -1,4 +1,9 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Enrollment } from './entities/enrollment.entity.js';
@@ -20,13 +25,14 @@ export class EnrollmentsService {
     if (studentId !== undefined) where.student = { id: studentId };
     if (courseId !== undefined) where.course = { id: courseId };
 
-    return this.enrollmentsRepository.find({ where });
+    return this.enrollmentsRepository.find({ where, order: { id: 'ASC' } });
   }
 
   async findByStudent(studentId: number): Promise<Enrollment[]> {
     await this.studentsService.findOne(studentId);
     return this.enrollmentsRepository.find({
       where: { student: { id: studentId } },
+      order: { id: 'ASC' },
     });
   }
 
@@ -34,6 +40,7 @@ export class EnrollmentsService {
     await this.coursesService.findOne(courseId);
     return this.enrollmentsRepository.find({
       where: { course: { id: courseId } },
+      order: { id: 'ASC' },
     });
   }
 
@@ -44,7 +51,7 @@ export class EnrollmentsService {
     const course = await this.coursesService.findOne(courseId);
 
     if (!student.isActive) {
-      throw new ConflictException('El estudiante no se encuentra activo');
+      throw new BadRequestException('El estudiante no se encuentra activo');
     }
 
     const alreadyEnrolled = await this.enrollmentsRepository.findOne({
@@ -61,7 +68,7 @@ export class EnrollmentsService {
   async remove(id: number): Promise<Enrollment> {
     const enrollment = await this.enrollmentsRepository.findOne({ where: { id } });
     if (!enrollment) {
-      throw new ConflictException(`Matrícula con id ${id} no encontrada`);
+      throw new NotFoundException(`Matrícula con id ${id} no encontrada`);
     }
     await this.enrollmentsRepository.remove(enrollment);
     return enrollment;
