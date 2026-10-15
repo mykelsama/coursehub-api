@@ -481,3 +481,84 @@ Verificación adicional en base de datos (DBeaver)
   - FK hacia students(id)
 - Restricción de email único confirmada en la tabla students (@Column unique: true)
 - Restricción única compuesta (student + course) confirmada en enrollments
+
+
+
+## Listado de cursos: filtros, paginación y ordenamiento (semana 11 courseapi)
+
+`GET /courses` acepta parámetros opcionales:
+
+| Parámetro | Descripción | Valores / límites | Por defecto |
+|-----------|-------------|-------------------|-------------|
+| `level` | Filtra por nivel | `beginner`, `intermediate`, `advanced` | sin filtro |
+| `title` | Filtra por título exacto | texto | sin filtro |
+| `page` | Número de página | entero ≥ 1 | 1 |
+| `limit` | Resultados por página | entero entre 1 y 50 | 10 |
+| `sortBy` | Campo de orden | `id`, `title`, `level` | `id` |
+| `order` | Dirección | `ASC`, `DESC` | `ASC` |
+
+Petición válida:
+
+```
+GET /courses?level=beginner&page=2&limit=3&sortBy=title&order=ASC
+```
+
+Respuesta resumida (`200 OK`):
+
+```json
+{
+  "items": [
+    { "id": 3, "title": "Git y GitHub desde cero", "level": "beginner" }
+  ],
+  "meta": { "total": 4, "page": 2, "limit": 3, "totalPages": 2 }
+}
+```
+
+Petición inválida (`400 Bad Request`):
+
+```
+GET /courses?sortBy=createdAt
+```
+
+`sortBy` se compara con una lista cerrada de campos; nunca se usa directamente el valor recibido, para evitar consultas inseguras. `total` es la cantidad de cursos que cumplen el filtro; `items.length` es solo lo que trae la página actual.
+
+
+
+
+## Búsqueda de matrículas con QueryBuilder (semana 12 courseapi)
+
+`GET /enrollments` combina búsqueda de texto, filtros y paginación. Devuelve cada matrícula con su `student` y su `course`.
+
+| Parámetro | Descripción | Valores / límites | Por defecto |
+|-----------|-------------|-------------------|-------------|
+| `search` | Texto contenido en el nombre del estudiante o en el título del curso (sin distinguir mayúsculas) | texto | sin búsqueda |
+| `studentId` | Filtra por estudiante | entero ≥ 1 | sin filtro |
+| `courseId` | Filtra por curso | entero ≥ 1 | sin filtro |
+| `activeOnly` | Solo matrículas de estudiantes activos | `true` / `false` | sin filtro |
+| `page` | Número de página | entero ≥ 1 | 1 |
+| `limit` | Resultados por página | entero entre 1 y 50 | 10 |
+
+Petición:
+
+```
+GET /enrollments?search=nest&activeOnly=true&page=1&limit=5
+```
+
+Respuesta resumida (`200 OK`):
+
+```json
+{
+  "items": [
+    {
+      "id": 5,
+      "student": { "id": 3, "name": "Ana Lopez", "isActive": true },
+      "course": { "id": 6, "title": "Introduccion a NestJS", "level": "beginner" }
+    }
+  ],
+  "meta": { "total": 2, "page": 1, "limit": 5, "totalPages": 1 }
+}
+```
+
+Una búsqueda sin coincidencias responde `200` con `items: []` y `total: 0`, porque la colección existe aunque ninguna fila coincida.
+
+El texto de búsqueda se envía como parámetro (`:search`) y nunca se concatena en la consulta, por lo que entradas como `' OR 1=1 --` se tratan como texto y no alteran la consulta SQL.

@@ -10,7 +10,7 @@ export class EnrollmentsController {
 
   @Get()
   findAll(@Query() query: EnrollmentsQueryDto) {
-    return this.enrollmentsService.findAll(query.studentId, query.courseId);
+    return this.enrollmentsService.findAll(query);
   }
 
   @Post()

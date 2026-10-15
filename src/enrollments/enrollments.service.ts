@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Enrollment } from './entities/enrollment.entity.js';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto.js';
+import { EnrollmentsQueryDto } from './dto/enrollments-query.dto.js';
 import { StudentsService } from '../students/students.service.js';
 import { CoursesService } from '../courses/courses.service.js';
 
@@ -20,12 +21,45 @@ export class EnrollmentsService {
     private readonly coursesService: CoursesService,
   ) {}
 
-  findAll(studentId?: number, courseId?: number): Promise<Enrollment[]> {
-    const where: Record<string, unknown> = {};
-    if (studentId !== undefined) where.student = { id: studentId };
-    if (courseId !== undefined) where.course = { id: courseId };
+  async findAll(query: EnrollmentsQueryDto) {
+    const qb = this.enrollmentsRepository
+      .createQueryBuilder('enrollment')
+      .leftJoinAndSelect('enrollment.student', 'student')
+      .leftJoinAndSelect('enrollment.course', 'course');
 
-    return this.enrollmentsRepository.find({ where, order: { id: 'ASC' } });
+    if (query.search) {
+      qb.andWhere('(student.name ILIKE :search OR course.title ILIKE :search)', {
+        search: `%${query.search.trim()}%`,
+      });
+    }
+
+    if (query.studentId) {
+      qb.andWhere('student.id = :studentId', { studentId: query.studentId });
+    }
+
+    if (query.courseId) {
+      qb.andWhere('course.id = :courseId', { courseId: query.courseId });
+    }
+
+    if (query.activeOnly === 'true') {
+      qb.andWhere('student.isActive = :active', { active: true });
+    }
+
+    qb.orderBy('enrollment.id', 'ASC')
+      .skip((query.page - 1) * query.limit)
+      .take(query.limit);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    return {
+      items,
+      meta: {
+        total,
+        page: query.page,
+        limit: query.limit,
+        totalPages: Math.ceil(total / query.limit),
+      },
+    };
   }
 
   async findByStudent(studentId: number): Promise<Enrollment[]> {
