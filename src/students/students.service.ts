@@ -67,10 +67,22 @@ export class StudentsService {
   }
 
   async remove(id: number): Promise<Student> {
-    const student = await this.findOne(id);
+    const student = await this.studentsRepository.findOne({
+      where: { id },
+      relations: { enrollments: true },
+    });
+    if (!student) {
+      throw new NotFoundException(`Estudiante con id ${id} no encontrado`);
+    }
 
     if (!student.isActive) {
       throw new ConflictException('No se puede eliminar un estudiante inactivo');
+    }
+
+    if (student.enrollments.length > 0) {
+      throw new ConflictException(
+        'No se puede eliminar un estudiante que tiene matrículas',
+      );
     }
 
     await this.studentsRepository.remove(student);

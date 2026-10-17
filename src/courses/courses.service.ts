@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsOrder, FindOptionsWhere, Repository } from 'typeorm';
 import { Course } from './entities/course.entity.js';
@@ -58,7 +62,20 @@ export class CoursesService {
   }
 
   async remove(id: number): Promise<Course> {
-    const course = await this.findOne(id);
+    const course = await this.coursesRepository.findOne({
+      where: { id },
+      relations: { enrollments: true },
+    });
+    if (!course) {
+      throw new NotFoundException(`Curso con id ${id} no encontrado`);
+    }
+
+    if (course.enrollments.length > 0) {
+      throw new ConflictException(
+        'No se puede eliminar un curso que tiene matrículas',
+      );
+    }
+
     await this.coursesRepository.remove(course);
     return course;
   }

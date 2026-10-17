@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import Joi from 'joi';
@@ -27,17 +27,25 @@ import { EnrollmentsModule } from './enrollments/enrollments.module.js';
       }),
     }),
     TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        host: config.getOrThrow<string>('DB_HOST'),
-        port: config.getOrThrow<number>('DB_PORT'),
-        username: config.getOrThrow<string>('DB_USER'),
-        password: config.getOrThrow<string>('DB_PASSWORD'),
-        database: config.getOrThrow<string>('DB_NAME'),
-        autoLoadEntities: true,
-        synchronize: true,
-      }),
+      useFactory: (config: ConfigService) => {
+        const nodeEnv = config.getOrThrow<string>('NODE_ENV');
+        const synchronize = nodeEnv === 'development';
+
+        Logger.log(`Ambiente: ${nodeEnv} | synchronize: ${synchronize}`, 'Database');
+
+        return {
+          type: 'postgres' as const,
+          host: config.getOrThrow<string>('DB_HOST'),
+          port: config.getOrThrow<number>('DB_PORT'),
+          username: config.getOrThrow<string>('DB_USER'),
+          password: config.getOrThrow<string>('DB_PASSWORD'),
+          database: config.getOrThrow<string>('DB_NAME'),
+          autoLoadEntities: true,
+          synchronize,
+        };
+      },
     }),
     CoursesModule,
     StudentsModule,

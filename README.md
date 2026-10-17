@@ -590,3 +590,168 @@ Config validation error: "DB_PORT" must be a number
 El archivo `.env` contiene credenciales y nunca se sube al repositorio (está en `.gitignore`). Solo se publica `.env.example`, que tiene nombres y valores ficticios.
 
 El modo `start:dev` no recarga al cambiar el `.env`: detén y vuelve a iniciar el servidor.
+
+# CourseHub API
+
+API REST con NestJS para gestionar **cursos**, **estudiantes** y **matrículas**, con persistencia en PostgreSQL mediante TypeORM.
+
+## Requisitos
+
+- Node.js 22
+- pnpm
+- PostgreSQL en ejecución (puerto 5432 por defecto)
+- Una base de datos vacía llamada `coursehub`:
+
+```sql
+CREATE DATABASE coursehub;
+```
+
+## Configuración
+
+1. Copia la plantilla de variables:
+
+   - Windows: `copy .env.example .env`
+   - macOS / Linux: `cp .env.example .env`
+
+2. Abre `.env` y reemplaza `DB_PASSWORD` por tu contraseña local de PostgreSQL.
+
+| Variable | Descripción | Obligatoria | Por defecto |
+|----------|-------------|-------------|-------------|
+| `NODE_ENV` | Ambiente: `development`, `test` o `production` | No | `development` |
+| `PORT` | Puerto de la API | No | `3000` |
+| `DB_HOST` | Servidor de PostgreSQL | Sí | — |
+| `DB_PORT` | Puerto de PostgreSQL | No | `5432` |
+| `DB_NAME` | Nombre de la base de datos | Sí | — |
+| `DB_USER` | Usuario de PostgreSQL | Sí | — |
+| `DB_PASSWORD` | Contraseña del usuario | Sí | — |
+
+Las variables se validan al iniciar. Si falta una obligatoria o tiene un valor inválido, la aplicación se detiene y el mensaje nombra la variable, por ejemplo: `Config validation error: "DB_PORT" must be a number`.
+
+## Ejecución
+
+```bash
+pnpm install
+pnpm run start:dev
+```
+
+La API queda en `http://localhost:3000` (o en el puerto definido en `PORT`). El modo `start:dev` no recarga los cambios del `.env`: detén y vuelve a iniciar el servidor.
+
+### Ambientes
+
+| Ambiente | `synchronize` de TypeORM | Efecto |
+|----------|--------------------------|--------|
+| `development` | Activado | Las tablas se crean y ajustan solas a partir de las entidades. |
+| `test` / `production` | Desactivado | TypeORM no modifica el esquema; los cambios deben hacerse con migraciones (aún no implementadas). |
+
+Al iniciar, la aplicación registra el ambiente y el valor de `synchronize` (sin mostrar credenciales).
+
+## Endpoints
+
+### Cursos
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/courses` | Lista paginada con filtros y orden |
+| GET | `/courses/:id` | Consulta un curso |
+| POST | `/courses` | Crea un curso |
+| PATCH | `/courses/:id` | Modifica un curso parcialmente |
+| DELETE | `/courses/:id` | Elimina un curso sin matrículas |
+| GET | `/courses/:id/enrollments` | Matrículas de un curso |
+
+Parámetros de `GET /courses`:
+
+| Parámetro | Descripción | Valores | Por defecto |
+|-----------|-------------|---------|-------------|
+| `level` | Filtra por nivel | `beginner`, `intermediate`, `advanced` | sin filtro |
+| `title` | Filtra por título exacto | texto | sin filtro |
+| `page` | Página | entero ≥ 1 | 1 |
+| `limit` | Resultados por página | entero entre 1 y 50 | 10 |
+| `sortBy` | Campo de orden | `id`, `title`, `level` | `id` |
+| `order` | Dirección | `ASC`, `DESC` | `ASC` |
+
+### Estudiantes
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/students` | Lista con filtros opcionales: `career`, `semester`, `isActive` |
+| GET | `/students/:id` | Consulta un estudiante |
+| POST | `/students` | Registra un estudiante |
+| PATCH | `/students/:id` | Modifica un estudiante parcialmente |
+| PATCH | `/students/:id/status` | Cambia solo `isActive` |
+| DELETE | `/students/:id` | Elimina un estudiante activo y sin matrículas |
+| GET | `/students/:id/enrollments` | Matrículas de un estudiante |
+
+### Matrículas
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/enrollments` | Búsqueda con filtros y paginación |
+| POST | `/enrollments` | Registra una matrícula |
+| DELETE | `/enrollments/:id` | Cancela una matrícula |
+
+Parámetros de `GET /enrollments`:
+
+| Parámetro | Descripción | Valores | Por defecto |
+|-----------|-------------|---------|-------------|
+| `search` | Texto en el nombre del estudiante o el título del curso (sin distinguir mayúsculas) | texto | sin búsqueda |
+| `studentId` | Filtra por estudiante | entero ≥ 1 | sin filtro |
+| `courseId` | Filtra por curso | entero ≥ 1 | sin filtro |
+| `activeOnly` | Solo estudiantes activos | `true` / `false` | sin filtro |
+| `page` | Página | entero ≥ 1 | 1 |
+| `limit` | Resultados por página | entero entre 1 y 50 | 10 |
+
+## Ejemplos de consultas
+
+Listado de cursos, página 2, ordenado por título:
+
+```
+GET /courses?level=beginner&page=2&limit=3&sortBy=title&order=ASC
+```
+
+```json
+{
+  "items": [
+    { "id": 5, "title": "Introduccion a NestJS", "level": "beginner" }
+  ],
+  "meta": { "total": 4, "page": 2, "limit": 3, "totalPages": 2 }
+}
+```
+
+Búsqueda de matrículas de estudiantes activos:
+
+```
+GET /enrollments?search=nest&activeOnly=true&page=1&limit=5
+```
+
+```json
+{
+  "items": [
+    {
+      "id": 3,
+      "student": { "id": 2, "name": "Ana Lopez", "isActive": true },
+      "course": { "id": 5, "title": "Introduccion a NestJS", "level": "beginner" }
+    }
+  ],
+  "meta": { "total": 2, "page": 1, "limit": 5, "totalPages": 1 }
+}
+```
+
+Una búsqueda sin coincidencias responde `200` con `items: []` y `total: 0`. El texto de búsqueda se envía como parámetro de la consulta y nunca se concatena, por lo que entradas como `' OR 1=1 --` se tratan como texto.
+
+## Reglas de negocio y códigos de error
+
+| Situación | Código |
+|-----------|--------|
+| Datos inválidos (campos faltantes, tipos incorrectos, `page=0`, `limit` mayor a 50) | 400 |
+| Matricular a un estudiante inactivo | 400 |
+| Estudiante, curso o matrícula inexistente | 404 |
+| Correo de estudiante repetido | 409 |
+| Matrícula duplicada (mismo estudiante y curso) | 409 |
+| Eliminar un estudiante inactivo | 409 |
+| Eliminar un curso o un estudiante que tiene matrículas | 409 |
+
+## Seguridad
+
+- El archivo `.env` contiene credenciales: **no se comparte ni se sube al repositorio** (está en `.gitignore`).
+- Solo se publica `.env.example`, que tiene nombres y valores ficticios.
+- La aplicación no registra contraseñas ni el objeto completo de configuración.
