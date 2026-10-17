@@ -484,7 +484,7 @@ Verificación adicional en base de datos (DBeaver)
 
 
 
-## Listado de cursos: filtros, paginación y ordenamiento (semana 11 courseapi)
+## Listado de cursos: filtros, paginación y ordenamiento (semana 6 sesion 11 courseapi)
 
 `GET /courses` acepta parámetros opcionales:
 
@@ -525,7 +525,7 @@ GET /courses?sortBy=createdAt
 
 
 
-## Búsqueda de matrículas con QueryBuilder (semana 12 courseapi)
+## Búsqueda de matrículas con QueryBuilder (semana 6 sesion 12 courseapi)
 
 `GET /enrollments` combina búsqueda de texto, filtros y paginación. Devuelve cada matrícula con su `student` y su `course`.
 
@@ -562,3 +562,31 @@ Respuesta resumida (`200 OK`):
 Una búsqueda sin coincidencias responde `200` con `items: []` y `total: 0`, porque la colección existe aunque ninguna fila coincida.
 
 El texto de búsqueda se envía como parámetro (`:search`) y nunca se concatena en la consulta, por lo que entradas como `' OR 1=1 --` se tratan como texto y no alteran la consulta SQL.
+
+
+## Configuración por variables de entorno (semana 7 sesion 13)
+
+La aplicación lee su configuración desde un archivo `.env` y la valida al iniciar. Si falta una variable obligatoria o tiene un valor inválido, el arranque se detiene y el mensaje nombra la variable.
+
+1. Copia la plantilla: `.env.example` → `.env`.
+2. Reemplaza `DB_PASSWORD` por tu contraseña local de PostgreSQL.
+
+| Variable | Descripción | Obligatoria | Por defecto |
+|----------|-------------|-------------|-------------|
+| `NODE_ENV` | Ambiente: `development`, `test` o `production` | No | `development` |
+| `PORT` | Puerto de la API | No | `3000` |
+| `DB_HOST` | Servidor de PostgreSQL | Sí | — |
+| `DB_PORT` | Puerto de PostgreSQL | No | `5432` |
+| `DB_NAME` | Nombre de la base de datos | Sí | — |
+| `DB_USER` | Usuario de PostgreSQL | Sí | — |
+| `DB_PASSWORD` | Contraseña del usuario | Sí | — |
+
+Ejemplo de falla con `DB_PORT=not-a-number`:
+
+```
+Config validation error: "DB_PORT" must be a number
+```
+
+El archivo `.env` contiene credenciales y nunca se sube al repositorio (está en `.gitignore`). Solo se publica `.env.example`, que tiene nombres y valores ficticios.
+
+El modo `start:dev` no recarga al cambiar el `.env`: detén y vuelve a iniciar el servidor.
