@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module.js';
 import { CoursesController } from './courses.controller.js';
 import { CoursesService } from './courses.service.js';
 import { Course } from './entities/course.entity.js';
@@ -8,6 +9,7 @@ import { EnrollmentsModule } from '../enrollments/enrollments.module.js';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Course]),
+    AuthModule,
     forwardRef(() => EnrollmentsModule),
   ],
   controllers: [CoursesController],
