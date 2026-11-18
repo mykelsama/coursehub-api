@@ -755,3 +755,51 @@ Una búsqueda sin coincidencias responde `200` con `items: []` y `total: 0`. El 
 - El archivo `.env` contiene credenciales: **no se comparte ni se sube al repositorio** (está en `.gitignore`).
 - Solo se publica `.env.example`, que tiene nombres y valores ficticios.
 - La aplicación no registra contraseñas ni el objeto completo de configuración.
+
+
+## Autorización y seguridad de acceso
+
+### Roles
+
+| Rol | Descripción |
+|-----|-------------|
+| `student` | Rol por defecto de toda cuenta nueva (el de menor privilegio) |
+| `teacher` | Puede crear cursos y modificar los suyos |
+| `admin` | Puede modificar y eliminar cualquier curso |
+
+El registro nunca acepta un rol: un cuerpo con `role` responde `400`. Los roles de `teacher` y `admin` los asigna una persona autorizada directamente en la base de datos. El rol viaja dentro del token, por lo que un cambio de rol se aplica en el siguiente inicio de sesión.
+
+### Política de rutas
+
+| Ruta | Acceso |
+|------|--------|
+| `POST /auth/register`, `POST /auth/login` | Pública (el login tiene límite de solicitudes) |
+| `GET /auth/me` | Requiere JWT |
+| `GET /courses`, `GET /courses/:id`, `GET /courses/:id/enrollments` | Pública |
+| `POST /courses` | JWT y rol `teacher` o `admin`; el curso queda a nombre de quien lo crea |
+| `PATCH /courses/:id` | JWT y rol `teacher` o `admin`; un docente solo modifica sus propios cursos |
+| `DELETE /courses/:id` | JWT y rol `admin` (ruta exclusiva de administración) |
+
+La propiedad de un curso se toma del usuario autenticado, nunca del cuerpo de la petición. Los cursos sin propietario solo los modifica un administrador.
+
+| Código | Significado |
+|--------|-------------|
+| 401 | No hay una identidad válida (sin token, token alterado o vencido) |
+| 403 | La identidad es válida pero no tiene permiso (rol insuficiente o curso ajeno) |
+| 429 | Se excedió el límite de solicitudes |
+
+### CORS
+
+Solo se permiten los orígenes de la variable `CORS_ORIGINS` (separados por coma, sin `*` ni barra final). En desarrollo: `http://localhost:5173`. En producción debe contener únicamente el dominio del cliente real. CORS limita qué sitios web pueden leer las respuestas desde un navegador; no reemplaza la autenticación ni la autorización, porque clientes como Postman o un script no lo aplican.
+
+| Variable | Descripción | Obligatoria | Por defecto |
+|----------|-------------|-------------|-------------|
+| `CORS_ORIGINS` | Orígenes web permitidos | No | `http://localhost:5173` |
+
+### Límite de solicitudes
+
+`POST /auth/login` admite 5 solicitudes por minuto por dirección IP; la sexta responde `429 Too Many Requests` sin revelar si el correo existe. El resto de la API admite 100 solicitudes por minuto.
+
+### HTTPS/TLS
+
+**Producción requiere HTTPS.** Sin TLS un token Bearer puede ser interceptado en la red, aunque su firma sea correcta. La terminación TLS se configura en el proxy, balanceador o plataforma de despliegue; `http://localhost` solo es aceptable en desarrollo. Los secretos (`JWT_SECRET`, `DB_PASSWORD`) viven únicamente en las variables de entorno y nunca en el repositorio.

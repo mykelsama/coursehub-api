@@ -1,5 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import Joi from 'joi';
 import { AppController } from './app.controller.js';
@@ -27,10 +29,14 @@ import { AuthModule } from './auth/auth.module.js';
         DB_PASSWORD: Joi.string().allow('').required(),
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_EXPIRES_IN: Joi.string()
-          .pattern(/^\d+(s|m|h|d)$/)
+          .pattern(/^\d+[smhd]$/)
           .default('15m'),
+        CORS_ORIGINS: Joi.string()
+          .pattern(/^https?:\/\/[^*\s,/]+(,\s*https?:\/\/[^*\s,/]+)*$/)
+          .default('http://localhost:5173'),
       }),
     }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -58,6 +64,10 @@ import { AuthModule } from './auth/auth.module.js';
     AuthModule,
   ],
   controllers: [AppController, WelcomeController],
-  providers: [AppService, WelcomeService],
+  providers: [
+    AppService,
+    WelcomeService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,8 @@ import { Course } from './entities/course.entity.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CoursesQueryDto } from './dto/courses-query.dto.js';
+import { UserRole } from '../users/user-role.enum.js';
+import type { AuthenticatedUser } from '../auth/types/jwt-payload.type.js';
 
 @Injectable()
 export class CoursesService {
@@ -50,13 +53,31 @@ export class CoursesService {
     return course;
   }
 
-  create(createCourseDto: CreateCourseDto): Promise<Course> {
-    const course = this.coursesRepository.create(createCourseDto);
+  create(
+    createCourseDto: CreateCourseDto,
+    actor: AuthenticatedUser,
+  ): Promise<Course> {
+    const course = this.coursesRepository.create({
+      ...createCourseDto,
+      createdByUserId: actor.id,
+    });
     return this.coursesRepository.save(course);
   }
 
-  async update(id: number, updateCourseDto: UpdateCourseDto): Promise<Course> {
+  async update(
+    id: number,
+    updateCourseDto: UpdateCourseDto,
+    actor: AuthenticatedUser,
+  ): Promise<Course> {
     const course = await this.findOne(id);
+
+    const isAdmin = actor.role === UserRole.ADMIN;
+    const isOwner = course.createdByUserId === actor.id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('No puedes modificar este curso');
+    }
+
     Object.assign(course, updateCourseDto);
     return this.coursesRepository.save(course);
   }

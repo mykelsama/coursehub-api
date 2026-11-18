@@ -17,6 +17,12 @@ import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CoursesQueryDto } from './dto/courses-query.dto.js';
 import { EnrollmentsService } from '../enrollments/enrollments.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { UserRole } from '../users/user-role.enum.js';
+import { ParseIntPipe } from '../students/pipes/parse-int.pipe.js';
+import type { AuthenticatedUser } from '../auth/types/jwt-payload.type.js';
 
 @Controller('courses')
 export class CoursesController {
@@ -27,8 +33,8 @@ export class CoursesController {
   ) {}
 
   @Get(':id/enrollments')
-  findEnrollments(@Param('id') id: string) {
-    return this.enrollmentsService.findByCourse(Number(id));
+  findEnrollments(@Param('id', ParseIntPipe) id: number) {
+    return this.enrollmentsService.findByCourse(id);
   }
 
   @Get()
@@ -37,23 +43,35 @@ export class CoursesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.coursesService.findOne(Number(id));
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.findOne(id);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  create(@Body() createCourseDto: CreateCourseDto) {
-    return this.coursesService.create(createCourseDto);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  create(
+    @Body() createCourseDto: CreateCourseDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.coursesService.create(createCourseDto, user);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCourseDto: UpdateCourseDto) {
-    return this.coursesService.update(Number(id), updateCourseDto);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCourseDto: UpdateCourseDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.coursesService.update(id, updateCourseDto, user);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.coursesService.remove(Number(id));
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.remove(id);
   }
 }
