@@ -12,6 +12,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { CoursesService } from './courses.service.js';
+import { UpdateCourseUseCase } from './use-cases/update-course.use-case.js';
 import { CreateCourseDto } from './dto/create-course.dto.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CoursesQueryDto } from './dto/courses-query.dto.js';
@@ -28,6 +29,7 @@ import type { AuthenticatedUser } from '../auth/types/jwt-payload.type.js';
 export class CoursesController {
   constructor(
     private readonly coursesService: CoursesService,
+    private readonly updateCourseUseCase: UpdateCourseUseCase,
     @Inject(forwardRef(() => EnrollmentsService))
     private readonly enrollmentsService: EnrollmentsService,
   ) {}
@@ -65,7 +67,7 @@ export class CoursesController {
     @Body() updateCourseDto: UpdateCourseDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.coursesService.update(id, updateCourseDto, user);
+    return this.updateCourseUseCase.execute(id, updateCourseDto, user);
   }
 
   @Delete(':id')
