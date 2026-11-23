@@ -803,3 +803,22 @@ Solo se permiten los orígenes de la variable `CORS_ORIGINS` (separados por coma
 ### HTTPS/TLS
 
 **Producción requiere HTTPS.** Sin TLS un token Bearer puede ser interceptado en la red, aunque su firma sea correcta. La terminación TLS se configura en el proxy, balanceador o plataforma de despliegue; `http://localhost` solo es aceptable en desarrollo. Los secretos (`JWT_SECRET`, `DB_PASSWORD`) viven únicamente en las variables de entorno y nunca en el repositorio.
+## Pruebas unitarias (semana 12)
+
+Las pruebas usan **Vitest** (`vi.fn()` cumple el mismo papel que `jest.fn()`) y `@nestjs/testing`. Las pruebas unitarias no necesitan PostgreSQL ni HTTP: el repositorio o el caso de uso se reemplazan por un doble de prueba.
+
+| Comando | Qué hace |
+|---------|----------|
+| `npm test` | Ejecuta todas las pruebas unitarias (`*.spec.ts`) |
+| `npm test -- update-course` | Ejecuta solo las pruebas cuyo archivo contiene `update-course` |
+| `npm run test:watch` | Vuelve a ejecutar las pruebas al guardar cambios |
+| `npm run test:cov` | Ejecuta las pruebas y muestra la cobertura (equivale a `npm test -- --coverage`) |
+| `npm run test:e2e` | Ejecuta las pruebas end-to-end de `test/` |
+
+### Qué protege cada prueba
+
+- `src/courses/use-cases/update-course.use-case.spec.ts`: la regla de propiedad. Se simula `COURSE_REPOSITORY` con `useValue`: el docente dueño y el admin pueden editar; un curso inexistente responde `404`; otro docente (o un curso sin dueño) recibe `403` **y `save` no se llama**, para garantizar que no se modificó nada.
+- `src/courses/courses.controller.spec.ts`: el controlador solo delega. Se simula `UpdateCourseUseCase` y se verifica que recibe el mismo `id`, el DTO sin cambios y el usuario autenticado, y que los errores del caso de uso se propagan en lugar de convertirse en un falso `200`.
+- `src/courses/courses.service.spec.ts`: la rama de eliminación. Un curso con matrículas responde `409` y no se elimina.
+
+Regla: no se simula la unidad que se prueba. Para el caso de uso se simula el repositorio; para el controlador, el caso de uso. Una cobertura alta no garantiza calidad: una línea puede ejecutarse sin que su resultado se verifique, por eso cada prueba tiene una expectativa explícita.
