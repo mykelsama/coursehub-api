@@ -1,0 +1,92 @@
+name: quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, pruebas unitarias y build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Instalación reproducible: falla si pnpm-lock.yaml no coincide con package.json.
+      - name: Instalar dependencias (lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Análisis estático (oxlint)
+        run: pnpm lint
+
+      - name: Pruebas unitarias
+        run: pnpm test
+
+      - name: Compilación
+        run: pnpm build
+
+  e2e:
+    name: Pruebas e2e (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Credenciales solo para el contenedor efímero del CI; nada de producción.
+    # DB_NAME y JWT_SECRET los fija test/utils/test-env.ts.
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias (lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Pruebas e2e
+        run: pnpm test:e2e
+
+  dependency-review:
+    name: Revisión de dependencias
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Bloquea el PR si introduce dependencias con vulnerabilidades altas o críticas.
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

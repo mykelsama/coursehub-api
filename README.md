@@ -822,3 +822,43 @@ Las pruebas usan **Vitest** (`vi.fn()` cumple el mismo papel que `jest.fn()`) y 
 - `src/courses/courses.service.spec.ts`: la rama de eliminación. Un curso con matrículas responde `409` y no se elimina.
 
 Regla: no se simula la unidad que se prueba. Para el caso de uso se simula el repositorio; para el controlador, el caso de uso. Una cobertura alta no garantiza calidad: una línea puede ejecutarse sin que su resultado se verifique, por eso cada prueba tiene una expectativa explícita.
+
+## Pruebas de integración y end-to-end (semana 13 · sesión 25)
+
+Las pruebas e2e (`test/*.e2e-spec.ts`) arrancan la aplicación completa con Supertest: rutas, guards, pipes, filter global y persistencia real en PostgreSQL. Usan la misma configuración que producción (`configureApp` en `src/app.setup.ts`, compartido con `main.ts`).
+
+```bash
+pnpm test:e2e
+```
+
+**Aislamiento de datos**
+
+- Usan una base **separada**: `coursehub_test` (se puede cambiar con `DB_NAME_TEST`, pero debe terminar en `_test`). Si no existe, `test/utils/global-setup.ts` la crea.
+- `test/utils/test-env.ts` fija `NODE_ENV=test`, `DB_NAME` y un `JWT_SECRET` exclusivo de pruebas. Estas variables tienen prioridad sobre `.env`, así que nunca se toca la base de desarrollo ni el secreto real; de `.env` solo se reutilizan las credenciales de conexión local.
+- Antes de **cada** prueba se borra y recrea el esquema (`dataSource.synchronize(true)`), y la aplicación se niega a hacerlo si la base no termina en `_test`. Ninguna prueba depende del orden ni de datos previos; ejecutar el conjunto dos veces da el mismo resultado.
+- Los archivos e2e se ejecutan en serie (`fileParallelism: false`, el equivalente de `--runInBand`) porque comparten la base.
+
+**Casos cubiertos** (`test/courses.e2e-spec.ts`): `GET /courses` público; `POST /courses` sin token → `401`, con rol estudiante → `403`, cuerpo inválido → `400`, como docente → `201` con `createdByUserId`; `PATCH /courses/:id` de otro docente → `403` sin modificar el curso, del dueño → `200`; id no numérico → `400`. Las identidades de práctica se crean con `/auth/register` + `/auth/login`; el rol docente se asigna directamente en la base de pruebas porque el registro público siempre crea estudiantes.
+
+## Integración continua (semana 13 · sesión 26)
+
+El flujo `.github/workflows/quality.yml` se ejecuta en cada `push` a `main` y en cada pull request. Cada control es un paso con nombre propio, para saber cuál falló sin leer todo el registro:
+
+| Job | Pasos |
+|-----|-------|
+| **Lint, pruebas unitarias y build** | `pnpm install --frozen-lockfile` (instalación reproducible desde `pnpm-lock.yaml`) → `pnpm lint` (oxlint) → `pnpm test` → `pnpm build` |
+| **Pruebas e2e (PostgreSQL)** | Levanta un contenedor `postgres:16` efímero (credenciales solo de CI) → `pnpm test:e2e` |
+| **Revisión de dependencias** | Solo en pull requests: `actions/dependency-review-action` bloquea el PR si agrega dependencias con vulnerabilidades `high` o `critical`. Requiere que el repositorio sea público o tenga GitHub Advanced Security; si no, este job fallará y debe desactivarse. |
+
+El proyecto usa **pnpm** (no hay `package-lock.json`), por eso el flujo usa `pnpm install --frozen-lockfile` en lugar de `npm ci`.
+
+### Auditoría de dependencias (pendiente)
+
+`pnpm audit` reporta vulnerabilidades. No se actualizaron versiones a ciegas: primero hay que identificar el paquete afectado, su compatibilidad y las pruebas necesarias. En las dependencias de **producción** (`pnpm audit --prod`):
+
+| Paquete | Llega por | Actualización mínima segura |
+|---------|-----------|-----------------------------|
+| `joi` (high) | dependencia directa | `>=18.3.1` (parche dentro de `^18`) |
+| `proxy-addr` (critical), `body-parser` (high), `qs` (moderate), `multer` (high) | `@nestjs/platform-express` → `express` | Actualizar `@nestjs/platform-express` cuando publique versiones corregidas, o usar `pnpm.overrides` y volver a correr unitarias + e2e |
+
+El resto son dependencias de desarrollo (`vite`, `vitest`, `@nestjs/cli`, etc.) que no se despliegan.
