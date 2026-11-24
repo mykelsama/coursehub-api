@@ -48,7 +48,7 @@ describe('Courses (e2e)', () => {
       .post('/courses')
       .set('Authorization', `Bearer ${student.token}`)
       .send(newCourse)
-      .expect(201);
+      .expect(403);
 
     const list = await http().get('/courses').expect(200);
     expect(list.body.meta.total).toBe(0);
